@@ -195,8 +195,8 @@ class _SchedulesPageState extends State<SchedulesPage> {
       children: [
         // Bouton Calendrier - En haut à droite
         Positioned(
-          bottom: 80,
-          left: 30,
+          bottom: 0,
+          left: 20,
           child: FloatingActionButton(
             heroTag: 'calendar',
             onPressed: _toggleCalendar,
@@ -212,18 +212,17 @@ class _SchedulesPageState extends State<SchedulesPage> {
         if (_canManageSchedules())
           Positioned(
             bottom: 0,
-            left: 30,
+            left: 90,
             child: FloatingActionButton(
               heroTag: 'add',
               onPressed: () => _showAddScheduleDialog(),
-              backgroundColor: Colors.greenAccent.shade200.withOpacity(1),
+              backgroundColor: Colors.greenAccent.withOpacity(1),
               child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),
           ),
       ],
     ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-
     );
   }
 

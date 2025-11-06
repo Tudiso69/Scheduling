@@ -120,26 +120,25 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 32),
 
-                        // Champ Numéro
+                        // ✅ Champ Numéro modifié
                         TextFormField(
-                           controller: _numeroController,
-                           keyboardType: TextInputType.text, // ✅ Changé de phone à text
-                           decoration: InputDecoration(
-                             labelText: 'Numéro *',
-                             hintText: '001, 002, Admin, etc.',
-                             prefixIcon: const Icon(Icons.badge),
-                             border: OutlineInputBorder(
-                               borderRadius: BorderRadius.circular(12),
-                             ),
-                           ),
-                           validator: (value) {
-                             if (value == null || value.isEmpty) {
-                               return 'Entrez votre numéro';
-                             }
-                             // ✅ Plus de contrainte de longueur !
-                             return null;
-                           },
-                         ),
+                          controller: _numeroController,
+                          keyboardType: TextInputType.text,
+                          decoration: InputDecoration(
+                            labelText: 'Numéro *',
+                            hintText: '001, admin, user123, etc.',
+                            prefixIcon: const Icon(Icons.badge),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Entrez votre numéro';
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 16),
 
                         // Champs supplémentaires pour l'inscription

@@ -6,6 +6,31 @@ class ApiService {
   static const String baseUrl = 'http://10.0.2.2:3000/api';
   static const storage = FlutterSecureStorage();
 
+
+  // ✅ Ajouter cette méthode dans la classe ApiService
+  static Future<Map<String, dynamic>> getAllUsers() async {
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/users'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'users': data['users']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+
   // Auth methods (identiques à avant mais avec 'numero' au lieu de 'telephone')
   static Future<Map<String, dynamic>> register({
     required String numero,

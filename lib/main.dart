@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dialpad.dart';
 import 'services/api_service.dart';
+import 'services/webrtc_service.dart';  // ✅ Nouveau
 import 'pages/login_page.dart';
 import 'pages/schedules_page.dart';
+import 'pages/contacts_page.dart';  // ✅ Nouveau
+import 'pages/call_screen.dart';  // ✅ Nouveau
 
 void main() => runApp(const MyApp());
 
@@ -60,7 +62,6 @@ class _AuthCheckerState extends State<AuthChecker> {
   }
 }
 
-// ✅ HomePage en StatefulWidget
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -69,16 +70,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // ✅ Variable d'état pour stocker les données utilisateur
   Map<String, dynamic>? _user;
+  final WebRTCService _webrtcService = WebRTCService();  // ✅ Nouveau
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _setupWebRTC();  // ✅ Nouveau
   }
 
-  // Charger les données utilisateur depuis le stockage sécurisé
   Future<void> _loadUser() async {
     final user = await ApiService.getUser();
     if (mounted) {
@@ -88,8 +89,91 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Fonction de déconnexion
+  // ✅ Configuration WebRTC
+  Future<void> _setupWebRTC() async {
+    final user = await ApiService.getUser();
+    if (user != null) {
+      await _webrtcService.connect(
+        serverUrl: 'http://10.0.2.2:3000',  // Changez pour votre IP
+        user: user,
+      );
+
+      // Écouter les appels entrants
+      _webrtcService.onIncomingCall = (fromId, fromName, fromNumber) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.call, color: Colors.green.shade600),
+                SizedBox(width: 12),
+                Text('Appel entrant'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person, size: 60, color: Colors.cyan.shade600),
+                SizedBox(height: 16),
+                Text(
+                  fromName,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  fromNumber,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _webrtcService.rejectCall();
+                  Navigator.pop(context);
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
+                child: Text('Refuser'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallScreen(
+                        destinationName: fromName,
+                        isIncoming: true,
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
+                child: Text('Accepter'),
+              ),
+            ],
+          ),
+        );
+      };
+    }
+  }
+
   Future<void> _logout() async {
+    _webrtcService.dispose();  // ✅ Déconnecter WebRTC
     await ApiService.logout();
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -106,7 +190,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.grey[50],
         body: Column(
           children: [
-            // Header Section
+            // Header Section (identique)
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -132,7 +216,6 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                   child: Row(
                     children: [
-                      // Profile Avatar
                       Container(
                         width: 60,
                         height: 60,
@@ -154,7 +237,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // User Info - Utilise _user qui est maintenant accessible
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +274,6 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                       ),
-                      // Logout Button
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
@@ -287,9 +368,8 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  // ✅ Passe le rôle utilisateur à SchedulesPage
                   SchedulesPage(userRole: _user?['role']),
-                  _buildTabContent(Icons.contacts, 'No contacts yet'),
+                  ContactsPage(),  // ✅ Page Contacts avec appels
                   _buildTabContent(Icons.history, 'No call history'),
                 ],
               ),
@@ -335,5 +415,11 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _webrtcService.dispose();  // ✅ Nettoyer à la fermeture
+    super.dispose();
   }
 }
