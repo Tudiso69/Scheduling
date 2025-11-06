@@ -37,6 +37,8 @@ class _CallScreenState extends State<CallScreen> {
 
   void _setupCallbacks() {
     _webrtcService.onCallStateChanged = (state) {
+      if (!mounted) return; // ✅ Vérifier si le widget est toujours monté
+
       setState(() {
         switch (state) {
           case CallState.connecting:
@@ -65,6 +67,7 @@ class _CallScreenState extends State<CallScreen> {
     try {
       await _webrtcService.makeCall(widget.destinationUserId!);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _statusText = 'Erreur: $e';
       });
@@ -203,8 +206,15 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
+  // ✅ MÉTHODE DISPOSE CORRIGÉE
   @override
   void dispose() {
+    // Nettoyer seulement si l'appel est toujours actif
+    if (_webrtcService.callState != CallState.idle &&
+        _webrtcService.callState != CallState.ended) {
+      print('🧹 Nettoyage depuis CallScreen dispose');
+      _webrtcService.endCall();
+    }
     super.dispose();
   }
 }

@@ -176,25 +176,46 @@ class WebRTCService {
     _endCall();
   }
 
+  // ✅ MÉTHODE CORRIGÉE
   Future<void> _createPeerConnection() async {
+    // ✅ Nettoyer l'ancienne peer connection si elle existe
+    if (_peerConnection != null) {
+      print('⚠️ Une peer connection existe déjà, nettoyage...');
+      await _peerConnection!.close();
+      _peerConnection!.dispose();
+      _peerConnection = null;
+    }
 
+    // ✅ Nettoyer l'ancien stream local s'il existe
+    if (_localStream != null) {
+      print('⚠️ Un stream local existe déjà, nettoyage...');
+      _localStream!.getTracks().forEach((track) {
+        track.stop();
+      });
+      _localStream!.dispose();
+      _localStream = null;
+    }
+
+    // Demander permission micro
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
       throw Exception('Microphone permission not granted');
     }
 
-    if (_localStream != null) {
-      print('⚠️ LocalStream déjà créé, on le réutilise');
-      return;
-    }
-
+    // Créer le nouveau stream
+    print('🎤 Création du nouveau stream audio...');
     _localStream = await navigator.mediaDevices.getUserMedia(_mediaConstraints);
+
+    // Créer la nouvelle peer connection
+    print('📡 Création de la nouvelle peer connection...');
     _peerConnection = await createPeerConnection(_iceServers, _constraints);
 
+    // Ajouter les tracks
     _localStream!.getTracks().forEach((track) {
       _peerConnection!.addTrack(track, _localStream!);
     });
 
+    // Callbacks
     _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
       _socket!.emit('ice_candidate', {
         'to': _currentCallUserId,
@@ -213,6 +234,7 @@ class WebRTCService {
     };
 
     _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+      print('📡 État connexion: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         _updateCallState(CallState.connected);
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
@@ -237,20 +259,44 @@ class WebRTCService {
     _peerConnection?.addCandidate(candidate);
   }
 
+  // ✅ MÉTHODE CORRIGÉE
   void _endCall() {
-    _localStream?.dispose();
-    _remoteStream?.dispose();
-    _peerConnection?.close();
+    print('🧹 Nettoyage des ressources WebRTC...');
 
-    _localStream = null;
-    _remoteStream = null;
-    _peerConnection = null;
+    // 1. Arrêter et supprimer le stream local
+    if (_localStream != null) {
+      _localStream!.getTracks().forEach((track) {
+        track.stop();
+      });
+      _localStream!.dispose();
+      _localStream = null;
+    }
+
+    // 2. Arrêter et supprimer le stream distant
+    if (_remoteStream != null) {
+      _remoteStream!.getTracks().forEach((track) {
+        track.stop();
+      });
+      _remoteStream!.dispose();
+      _remoteStream = null;
+    }
+
+    // 3. Fermer et supprimer la peer connection
+    if (_peerConnection != null) {
+      _peerConnection!.close();
+      _peerConnection!.dispose();
+      _peerConnection = null;
+    }
+
+    // 4. Réinitialiser les variables
     _currentCallUserId = null;
+    _incomingOffer = null;
 
     _updateCallState(CallState.ended);
 
     Future.delayed(Duration(seconds: 1), () {
       _updateCallState(CallState.idle);
+      print('✅ Nettoyage terminé, prêt pour un nouvel appel');
     });
   }
 

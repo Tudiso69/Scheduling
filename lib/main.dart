@@ -6,6 +6,9 @@ import 'pages/login_page.dart';
 import 'pages/schedules_page.dart';
 import 'pages/contacts_page.dart';  // ✅ Nouveau
 import 'pages/call_screen.dart';  // ✅ Nouveau
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() => runApp(const MyApp());
 
@@ -26,6 +29,27 @@ class MyApp extends StatelessWidget {
   }
 }
 
+
+// ✅ AJOUTER CETTE FONCTION
+Future<String> getServerUrl() async {
+  if (Platform.isAndroid) {
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+
+    // Vérifier si c'est un émulateur
+    final isEmulator = !androidInfo.isPhysicalDevice;
+
+    if (isEmulator) {
+      print('📱 Émulateur détecté → http://10.0.2.2:3000');
+      return 'http://10.0.2.2:3000';
+    } else {
+      print('📱 Téléphone réel détecté → http://192.168.46.79:3000');
+      return 'http://192.168.46.79:3000';  // REMPLACEZ par votre IP Windows
+    }
+  }
+
+  return 'http://localhost:3000';
+}
 // Vérificateur d'authentification
 class AuthChecker extends StatefulWidget {
   const AuthChecker({super.key});
@@ -93,8 +117,10 @@ class _HomePageState extends State<HomePage> {
   Future<void> _setupWebRTC() async {
     final user = await ApiService.getUser();
     if (user != null) {
+      final serverUrl = await getServerUrl();  // ✅ Async
+
       await _webrtcService.connect(
-        serverUrl: 'http://10.0.2.2:3000',  // Changez pour votre IP
+        serverUrl: serverUrl,
         user: user,
       );
 
