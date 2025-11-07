@@ -6,6 +6,171 @@ class ApiService {
   static const String baseUrl = 'http://192.168.46.79:3000/api';
   static const storage = FlutterSecureStorage();
 
+  // ============================================
+// HISTORY METHODS
+// ============================================
+
+  /// Récupérer l'historique des schedules
+  static Future<Map<String, dynamic>> getSchedulesHistory({
+    String period = 'all'
+  }) async {
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/history/schedules?period=$period'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'history': data['history']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+  /// Récupérer l'historique des appels
+  static Future<Map<String, dynamic>> getCallsHistory({
+    String period = 'all',
+    String type = 'all'
+  }) async {
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/history/calls?period=$period&type=$type'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'calls': data['calls']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+  /// Enregistrer un appel dans l'historique
+  static Future<Map<String, dynamic>> saveCallHistory({
+    required int receiverId,
+    required String callStatus,
+    required int durationSeconds,
+    required DateTime startedAt,
+    DateTime? endedAt,
+  }) async {
+    try {
+      final token = await getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/history/calls'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'receiverId': receiverId,
+          'callStatus': callStatus,
+          'durationSeconds': durationSeconds,
+          'startedAt': startedAt.toIso8601String(),
+          'endedAt': endedAt?.toIso8601String(),
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'call': data['call']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+  /// Récupérer les statistiques d'historique
+  static Future<Map<String, dynamic>> getHistoryStats() async {
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/history/stats'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'stats': data['stats']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+  /// Archiver les schedules expirés (Admin/Secrétaire uniquement)
+  static Future<Map<String, dynamic>> archiveExpiredSchedules() async {
+    try {
+      final token = await getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/history/archive-expired'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'archived_count': data['archived_count']};
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+  /// Nettoyer l'historique > 7 jours (Admin uniquement)
+  static Future<Map<String, dynamic>> cleanupOldHistory() async {
+    try {
+      final token = await getToken();
+      final response = await http.delete(
+        Uri.parse('$baseUrl/history/cleanup'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'schedules_deleted': data['schedules_deleted'],
+          'calls_deleted': data['calls_deleted']
+        };
+      } else {
+        return {'success': false, 'message': data['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion'};
+    }
+  }
+
+
 
   // ✅ Ajouter cette méthode dans la classe ApiService
   static Future<Map<String, dynamic>> getAllUsers() async {

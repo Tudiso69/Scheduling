@@ -1,11 +1,12 @@
+import 'package:first/pages/history_page.dart';
 import 'package:flutter/material.dart';
 import 'dialpad.dart';
 import 'services/api_service.dart';
-import 'services/webrtc_service.dart';  // ✅ Nouveau
+import 'services/webrtc_service.dart';
 import 'pages/login_page.dart';
 import 'pages/schedules_page.dart';
-import 'pages/contacts_page.dart';  // ✅ Nouveau
-import 'pages/call_screen.dart';  // ✅ Nouveau
+import 'pages/contacts_page.dart';
+import 'pages/call_screen.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -116,12 +117,14 @@ class _HomePageState extends State<HomePage> {
   // ✅ Configuration WebRTC
   Future<void> _setupWebRTC() async {
     final user = await ApiService.getUser();
+    final token = await ApiService.getToken();
     if (user != null) {
       final serverUrl = await getServerUrl();  // ✅ Async
 
       await _webrtcService.connect(
         serverUrl: serverUrl,
         user: user,
+        token: token,
       );
 
       // Écouter les appels entrants
@@ -396,7 +399,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   SchedulesPage(userRole: _user?['role']),
                   ContactsPage(),  // ✅ Page Contacts avec appels
-                  _buildTabContent(Icons.history, 'No call history'),
+                  HistoryPage(),
                 ],
               ),
             ),
