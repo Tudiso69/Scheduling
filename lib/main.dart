@@ -10,8 +10,17 @@ import 'pages/call_screen.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'pages/settings_page.dart';
 
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Initialiser l'URL du serveur depuis les préférences
+  await ApiService.initializeServerUrl();
+
+  runApp(const MyApp());
+}
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -104,6 +113,156 @@ class _HomePageState extends State<HomePage> {
     _loadUser();
     _setupWebRTC();  // ✅ Nouveau
   }
+
+  void _showSettingsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Poignée
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(top: 12, bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Titre
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, color: Colors.cyan.shade700, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'Paramètres',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // ✅ Option 1 : Changer IP du serveur (Admin uniquement)
+              //if (_user?['role'] == 'admin')
+                ListTile(
+                  leading: Container(
+                    padding: EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.computer, color: Colors.blue.shade700),
+                  ),
+                  title: Text(
+                    'Configuration Serveur',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text('Modifier l\'IP du serveur'),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => SettingsPage()),
+                    );
+                  },
+                ),
+
+              // Divider si admin (pour séparer les options)
+              if (_user?['role'] == 'admin')
+                Divider(height: 1, thickness: 1),
+
+              // ✅ Option 2 : Déconnexion (Tous les utilisateurs)
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.logout, color: Colors.red.shade700),
+                ),
+                title: Text(
+                  'Déconnexion',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                subtitle: Text('Se déconnecter de l\'application'),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmLogout();
+                },
+              ),
+
+              SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+// Dialog de confirmation de déconnexion
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange.shade700),
+            SizedBox(width: 12),
+            Text('Confirmation'),
+          ],
+        ),
+        content: Text('Voulez-vous vraiment vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Future<void> _loadUser() async {
     final user = await ApiService.getUser();
@@ -238,114 +397,182 @@ class _HomePageState extends State<HomePage> {
                     offset: const Offset(0, 5),
                   ),
                 ],
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+              ),child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                child: Row(
+                  children: [
+                    // ✅ Avatar avec gradient + point vert "En ligne"
+                    Stack(
+                      children: [
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.cyan.shade300,
+                                Colors.cyan.shade600,
+                              ],
                             ),
-                          ],
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.cyan.withOpacity(0.4),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 3,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _user?['nom']?[0]?.toUpperCase() ?? 'U',
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          Icons.person,
-                          size: 32,
-                          color: Colors.cyan.shade600,
+                        // Point "En ligne" (vert)
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade500,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 3,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+
+                    // ✅ Infos utilisateur avec badges
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Numéro avec badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
                               _user?['numero'] ?? 'Chargement...',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
-                                letterSpacing: 0.5,
+                                letterSpacing: 1.5,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _user != null
-                                  ? '${_user!['nom']} ${_user!['prenom'] ?? ''}'.trim()
-                                  : '',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withOpacity(0.9),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            if (_user?['fonction'] != null)
-                              Text(
-                                _user!['fonction'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontStyle: FontStyle.italic,
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Nom avec ombre
+                          Text(
+                            _user != null
+                                ? '${_user!['nom']} ${_user!['prenom'] ?? ''}'.trim()
+                                : '',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black12.withOpacity(0.1),
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 2,
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Déconnexion'),
-                                content: const Text('Voulez-vous vous déconnecter ?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Annuler'),
+                              ],
+                            ),
+                          ),
+
+                          // Fonction avec icône étoile
+                          if (_user?['fonction'] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade400,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.star,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      _logout();
-                                    },
-                                    child: const Text(
-                                      'Déconnexion',
-                                      style: TextStyle(color: Colors.red),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      _user!['fonction'],
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.amber.shade100.withOpacity(1),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.exit_to_app,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                          tooltip: 'Déconnexion',
-                        ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Bouton déconnexion (inchangé)
+                    // Dans le Row du header, remplacez le bouton déconnexion par :
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          _showSettingsMenu(context);
+                        },
+                        icon: const Icon(
+                          Icons.settings,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        tooltip: 'Paramètres',
+                      ),
+                    ),
+
+                  ],
                 ),
               ),
+            ),
+
             ),
             // Tab Bar Section
             Container(
@@ -382,12 +609,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Tab(
                     icon: Icon(Icons.contacts, size: 24),
-                    text: 'Contacts',
+                    text: 'Contactes',
                     height: 70,
                   ),
                   Tab(
                     icon: Icon(Icons.history, size: 24),
-                    text: 'History',
+                    text: 'Historique',
                     height: 70,
                   ),
                 ],
@@ -404,7 +631,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
-        ),
+        ),/*
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             DialpadBottomSheet.show(context);
@@ -416,7 +643,7 @@ class _HomePageState extends State<HomePage> {
             size: 28,
             color: Colors.white,
           ),
-        ),
+        ),*/
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );

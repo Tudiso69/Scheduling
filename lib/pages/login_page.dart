@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../main.dart';
+import 'settings_page.dart'; // ✅ Ajout de l'import
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -89,236 +90,267 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // ✅ Bouton Settings en haut à droite
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SettingsPage()),
+                      );
+                    },
+                    tooltip: 'Configuration Serveur',
+                  ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.phone_android,
-                          size: 80,
-                          color: Colors.cyan.shade600,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _isLogin ? 'Connexion' : 'Inscription',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.cyan.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
+              ),
 
-                        // ✅ Champ Numéro modifié
-                        TextFormField(
-                          controller: _numeroController,
-                          keyboardType: TextInputType.text,
-                          decoration: InputDecoration(
-                            labelText: 'Numéro *',
-                            hintText: '001, admin, user123, etc.',
-                            prefixIcon: const Icon(Icons.badge),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+              // Contenu principal (Card de login)
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.phone_android,
+                              size: 80,
+                              color: Colors.cyan.shade600,
                             ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Entrez votre numéro';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Champs supplémentaires pour l'inscription
-                        if (!_isLogin) ...[
-                          TextFormField(
-                            controller: _nomController,
-                            decoration: InputDecoration(
-                              labelText: 'Nom *',
-                              prefixIcon: const Icon(Icons.person),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 16),
+                            Text(
+                              _isLogin ? 'Connexion' : 'Inscription',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.cyan.shade700,
                               ),
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Entrez votre nom';
-                              }
-                              if (value.length < 2) {
-                                return 'Nom trop court';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 32),
 
-                          TextFormField(
-                            controller: _prenomController,
-                            decoration: InputDecoration(
-                              labelText: 'Prénom',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            // Champ Numéro
+                            TextFormField(
+                              controller: _numeroController,
+                              keyboardType: TextInputType.text,
+                              decoration: InputDecoration(
+                                labelText: 'Numéro *',
+                                hintText: '001, admin, user123, etc.',
+                                prefixIcon: const Icon(Icons.badge),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _fonctionController,
-                            decoration: InputDecoration(
-                              labelText: 'Fonction *',
-                              hintText: 'Ex: Secrétaire, Médecin, etc.',
-                              prefixIcon: const Icon(Icons.work),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Entrez votre fonction';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: const Icon(Icons.email),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value != null && value.isNotEmpty) {
-                                final emailRegex = RegExp(
-                                  r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
-                                );
-                                if (!emailRegex.hasMatch(value)) {
-                                  return 'Email invalide';
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Entrez votre numéro';
                                 }
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _telephoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              labelText: 'Téléphone',
-                              prefixIcon: const Icon(Icons.phone),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Champ mot de passe
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            labelText: 'Mot de passe *',
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
+                                return null;
                               },
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Entrez votre mot de passe';
-                            }
-                            if (!_isLogin && value.length < 6) {
-                              return 'Au moins 6 caractères requis';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
+                            const SizedBox(height: 16),
 
-                        // Bouton de soumission
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.cyan.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            // Champs supplémentaires pour l'inscription
+                            if (!_isLogin) ...[
+                              TextFormField(
+                                controller: _nomController,
+                                decoration: InputDecoration(
+                                  labelText: 'Nom *',
+                                  prefixIcon: const Icon(Icons.person),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Entrez votre nom';
+                                  }
+                                  if (value.length < 2) {
+                                    return 'Nom trop court';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              TextFormField(
+                                controller: _prenomController,
+                                decoration: InputDecoration(
+                                  labelText: 'Prénom',
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              TextFormField(
+                                controller: _fonctionController,
+                                decoration: InputDecoration(
+                                  labelText: 'Fonction *',
+                                  hintText: 'Ex: Secrétaire, Médecin, etc.',
+                                  prefixIcon: const Icon(Icons.work),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Entrez votre fonction';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: InputDecoration(
+                                  labelText: 'Email',
+                                  prefixIcon: const Icon(Icons.email),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty) {
+                                    final emailRegex = RegExp(
+                                      r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
+                                    );
+                                    if (!emailRegex.hasMatch(value)) {
+                                      return 'Email invalide';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              TextFormField(
+                                controller: _telephoneController,
+                                keyboardType: TextInputType.phone,
+                                decoration: InputDecoration(
+                                  labelText: 'Téléphone',
+                                  prefixIcon: const Icon(Icons.phone),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
+                            // Champ mot de passe
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelText: 'Mot de passe *',
+                                prefixIcon: const Icon(Icons.lock),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Entrez votre mot de passe';
+                                }
+                                if (!_isLogin && value.length < 6) {
+                                  return 'Au moins 6 caractères requis';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Bouton de soumission
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.cyan.shade600,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                    color: Colors.white)
+                                    : Text(
+                                  _isLogin ? 'Se connecter' : 'S\'inscrire',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
-                            child: _isLoading
-                                ? const CircularProgressIndicator(
-                                color: Colors.white)
-                                : Text(
-                              _isLogin ? 'Se connecter' : 'S\'inscrire',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            const SizedBox(height: 16),
+
+                            // Bouton de changement de mode
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                  _formKey.currentState?.reset();
+                                });
+                              },
+                              child: Text(
+                                _isLogin
+                                    ? 'Pas de compte ? S\'inscrire'
+                                    : 'Déjà un compte ? Se connecter',
+                                style: TextStyle(
+                                  color: Colors.cyan.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-
-                        // Bouton de changement de mode
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLogin = !_isLogin;
-                              _formKey.currentState?.reset();
-                            });
-                          },
-                          child: Text(
-                            _isLogin
-                                ? 'Pas de compte ? S\'inscrire'
-                                : 'Déjà un compte ? Se connecter',
-                            style: TextStyle(
-                              color: Colors.cyan.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

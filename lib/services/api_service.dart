@@ -1,14 +1,47 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.46.79:3000/api';
+  // ✅ URL de base modifiable
+  static String _baseUrl = 'http://192.168.46.79:3000/api';
+
   static const storage = FlutterSecureStorage();
 
+  // ✅ Getter pour accéder à baseUrl
+  static String get baseUrl => _baseUrl;
+
+  // ✅ Initialiser l'URL au démarrage de l'app
+  static Future<void> initializeServerUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ip = prefs.getString('server_ip') ?? '192.168.46.79';
+    final port = prefs.getString('server_port') ?? '3000';
+    _baseUrl = 'http://$ip:$port/api';
+    print('📡 Server URL initialisé: $_baseUrl');
+  }
+
+  // ✅ Mettre à jour l'URL manuellement
+  static Future<void> updateServerUrl(String newIp, String newPort) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('server_ip', newIp);
+    await prefs.setString('server_port', newPort);
+    _baseUrl = 'http://$newIp:$newPort/api';
+    print('📡 Server URL mis à jour: $_baseUrl');
+  }
+
+  // ✅ Récupérer l'IP et le port actuels
+  static Future<Map<String, String>> getCurrentServerConfig() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'ip': prefs.getString('server_ip') ?? '192.168.46.79',
+      'port': prefs.getString('server_port') ?? '3000',
+    };
+  }
+
   // ============================================
-// HISTORY METHODS
-// ============================================
+  // HISTORY METHODS
+  // ============================================
 
   /// Récupérer l'historique des schedules
   static Future<Map<String, dynamic>> getSchedulesHistory({
@@ -17,7 +50,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/history/schedules?period=$period'),
+        Uri.parse('$_baseUrl/history/schedules?period=$period'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -43,7 +76,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/history/calls?period=$period&type=$type'),
+        Uri.parse('$_baseUrl/history/calls?period=$period&type=$type'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -72,7 +105,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.post(
-        Uri.parse('$baseUrl/history/calls'),
+        Uri.parse('$_baseUrl/history/calls'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -102,7 +135,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/history/stats'),
+        Uri.parse('$_baseUrl/history/stats'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -125,7 +158,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.post(
-        Uri.parse('$baseUrl/history/archive-expired'),
+        Uri.parse('$_baseUrl/history/archive-expired'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -148,7 +181,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.delete(
-        Uri.parse('$baseUrl/history/cleanup'),
+        Uri.parse('$_baseUrl/history/cleanup'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -170,14 +203,15 @@ class ApiService {
     }
   }
 
+  // ============================================
+  // USER METHODS
+  // ============================================
 
-
-  // ✅ Ajouter cette méthode dans la classe ApiService
   static Future<Map<String, dynamic>> getAllUsers() async {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/users'),
+        Uri.parse('$_baseUrl/users'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -195,8 +229,10 @@ class ApiService {
     }
   }
 
+  // ============================================
+  // AUTH METHODS
+  // ============================================
 
-  // Auth methods (identiques à avant mais avec 'numero' au lieu de 'telephone')
   static Future<Map<String, dynamic>> register({
     required String numero,
     required String nom,
@@ -208,7 +244,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
+        Uri.parse('$_baseUrl/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'numero': numero,
@@ -240,7 +276,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse('$_baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'numero': numero,
@@ -261,12 +297,15 @@ class ApiService {
     }
   }
 
-  // Schedule methods
+  // ============================================
+  // SCHEDULE METHODS
+  // ============================================
+
   static Future<Map<String, dynamic>> getSchedules() async {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/schedules'),
+        Uri.parse('$_baseUrl/schedules'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -297,7 +336,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.post(
-        Uri.parse('$baseUrl/schedules'),
+        Uri.parse('$_baseUrl/schedules'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -332,7 +371,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.put(
-        Uri.parse('$baseUrl/schedules/$scheduleId'),
+        Uri.parse('$_baseUrl/schedules/$scheduleId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -355,7 +394,7 @@ class ApiService {
     try {
       final token = await getToken();
       final response = await http.delete(
-        Uri.parse('$baseUrl/schedules/$scheduleId'),
+        Uri.parse('$_baseUrl/schedules/$scheduleId'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -372,7 +411,10 @@ class ApiService {
     }
   }
 
-  // Utility methods
+  // ============================================
+  // UTILITY METHODS
+  // ============================================
+
   static Future<String?> getToken() async {
     return await storage.read(key: 'token');
   }
@@ -390,7 +432,12 @@ class ApiService {
   }
 
   static Future<bool> isLoggedIn() async {
-    final token = await getToken();
-    return token != null;
+    try {
+      final token = await storage.read(key: 'token')
+          .timeout(Duration(seconds: 3), onTimeout: () => null);
+      return token != null;
+    } catch (e) {
+      return false;
+    }
   }
 }

@@ -19,7 +19,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Set<int> _expandedSchedules = {}; // Pour tracker les descriptions expandées
+  Set<int> _expandedSchedules = {};
 
   @override
   void initState() {
@@ -87,7 +87,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
             ),
           ),
 
-          // Calendrier overlay
+          // ✅ Calendrier overlay plus petit et responsive
           if (_showCalendar)
             Positioned.fill(
               child: GestureDetector(
@@ -96,9 +96,14 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   color: Colors.black54,
                   child: Center(
                     child: GestureDetector(
-                      onTap: () {}, // Empêche la fermeture au clic sur le calendrier
+                      onTap: () {},
                       child: Container(
-                        margin: const EdgeInsets.all(20),
+                        // ✅ Taille responsive avec constraints
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.9,
+                          maxHeight: MediaQuery.of(context).size.height * 0.7,
+                        ),
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -115,7 +120,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
                           children: [
                             // Header du calendrier
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
                                 color: Colors.cyan.shade600,
                                 borderRadius: const BorderRadius.only(
@@ -125,63 +130,83 @@ class _SchedulesPageState extends State<SchedulesPage> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_today, color: Colors.white),
+                                  const Icon(Icons.calendar_today, color: Colors.white, size: 22),
                                   const SizedBox(width: 12),
                                   const Text(
                                     'Calendrier',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 20,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   const Spacer(),
                                   IconButton(
                                     onPressed: _toggleCalendar,
-                                    icon: const Icon(Icons.close, color: Colors.white),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
                                   ),
                                 ],
                               ),
                             ),
-                            // Calendrier
-                            TableCalendar(
-                              firstDay: DateTime.utc(2020, 1, 1),
-                              lastDay: DateTime.utc(2030, 12, 31),
-                              focusedDay: _focusedDay,
-                              calendarFormat: _calendarFormat,
-                              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                              onDaySelected: (selectedDay, focusedDay) {
-                                setState(() {
-                                  _selectedDay = selectedDay;
-                                  _focusedDay = focusedDay;
-                                });
-                              },
-                              onFormatChanged: (format) {
-                                setState(() {
-                                  _calendarFormat = format;
-                                });
-                              },
-                              eventLoader: _getEventsForDay,
-                              calendarStyle: CalendarStyle(
-                                todayDecoration: BoxDecoration(
-                                  color: Colors.cyan.shade300,
-                                  shape: BoxShape.circle,
+                            // ✅ Calendrier avec padding optimisé
+                            Flexible(
+                              child: SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: TableCalendar(
+                                    firstDay: DateTime.utc(2020, 1, 1),
+                                    lastDay: DateTime.utc(2030, 12, 31),
+                                    focusedDay: _focusedDay,
+                                    calendarFormat: _calendarFormat,
+                                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                                    onDaySelected: (selectedDay, focusedDay) {
+                                      setState(() {
+                                        _selectedDay = selectedDay;
+                                        _focusedDay = focusedDay;
+                                      });
+                                    },
+                                    onFormatChanged: (format) {
+                                      setState(() {
+                                        _calendarFormat = format;
+                                      });
+                                    },
+                                    eventLoader: _getEventsForDay,
+                                    // ✅ Taille des cellules optimisée
+                                    daysOfWeekHeight: 40,
+                                    rowHeight: 48,
+                                    calendarStyle: CalendarStyle(
+                                      todayDecoration: BoxDecoration(
+                                        color: Colors.cyan.shade300,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      selectedDecoration: BoxDecoration(
+                                        color: Colors.cyan.shade600,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      markerDecoration: const BoxDecoration(
+                                        color: Colors.orange,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      // ✅ Taille de texte optimisée
+                                      cellMargin: const EdgeInsets.all(4),
+                                      defaultTextStyle: const TextStyle(fontSize: 14),
+                                      weekendTextStyle: const TextStyle(fontSize: 14),
+                                    ),
+                                    headerStyle: HeaderStyle(
+                                      formatButtonVisible: true,
+                                      titleCentered: true,
+                                      formatButtonTextStyle: const TextStyle(fontSize: 13),
+                                      titleTextStyle: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                selectedDecoration: BoxDecoration(
-                                  color: Colors.cyan.shade600,
-                                  shape: BoxShape.circle,
-                                ),
-                                markerDecoration: const BoxDecoration(
-                                  color: Colors.orange,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              headerStyle: const HeaderStyle(
-                                formatButtonVisible: true,
-                                titleCentered: true,
                               ),
                             ),
-                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
@@ -191,38 +216,46 @@ class _SchedulesPageState extends State<SchedulesPage> {
               ),
             ),
         ],
-      ),floatingActionButton: Stack(
-      children: [
-        // Bouton Calendrier - En haut à droite
-        Positioned(
-          bottom: 0,
-          left: 20,
-          child: FloatingActionButton(
-            heroTag: 'calendar',
-            onPressed: _toggleCalendar,
-            backgroundColor: Colors.cyan.shade400,
-            child: Icon(
-              _showCalendar ? Icons.close : Icons.calendar_today,
-              color: Colors.white,
-            ),
-          ),
-        ),
+      ),
+      // ✅ Boutons repositionnés : Calendrier à gauche, Ajouter à droite// ✅ Les deux boutons côte à côte en bas à gauche
+       floatingActionButton: Padding(
+         padding: const EdgeInsets.only(left: 10),
+         child: Row(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             // Bouton Calendrier
+             FloatingActionButton(
+               heroTag: 'calendar',
+               onPressed: _toggleCalendar,
+               backgroundColor: Colors.cyan.shade600,
+               elevation: 6,
+               child: Icon(
+                 _showCalendar ? Icons.close : Icons.calendar_today,
+                 color: Colors.white,
+                 size: 26,
+               ),
+             ),
 
-        // Bouton Ajouter - En bas à GAUCHE
-        if (_canManageSchedules())
-          Positioned(
-            bottom: 0,
-            left: 90,
-            child: FloatingActionButton(
-              heroTag: 'add',
-              onPressed: () => _showAddScheduleDialog(),
-              backgroundColor: Colors.greenAccent.withOpacity(1),
-              child: const Icon(Icons.add, color: Colors.white, size: 28),
-            ),
-          ),
-      ],
-    ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+             // Espacement entre les boutons
+             const SizedBox(width: 12),
+
+             // Bouton Ajouter (seulement pour admin/secrétaire)
+             if (_canManageSchedules())
+               FloatingActionButton(
+                 heroTag: 'add',
+                 onPressed: () => _showAddScheduleDialog(),
+                 backgroundColor: Colors.greenAccent,
+                 elevation: 6,
+                 child: const Icon(
+                   Icons.add,
+                   color: Colors.white,
+                   size: 28,
+                 ),
+               ),
+           ],
+         ),
+       ),
+       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 

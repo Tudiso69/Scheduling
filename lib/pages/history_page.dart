@@ -125,8 +125,8 @@ class _HistoryPageState extends State<HistoryPage> {
           Expanded(
             child: Text(
               _currentView == 'schedules'
-                  ? 'Schedules history'
-                  : 'Call history',
+                  ? 'Schedules'
+                  : 'Appels',
               style: TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.bold,
@@ -425,7 +425,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     child: Wrap(
                       spacing: 8,
                       children: [
-                        _buildFilterChip('Aujourd\'hui', 'today', _callPeriod, (value) {
+                        _buildFilterChip('Récent', 'today', _callPeriod, (value) {
                           setState(() => _callPeriod = value);
                           _loadCallsHistory();
                         }),
@@ -532,9 +532,9 @@ class _HistoryPageState extends State<HistoryPage> {
             child: Wrap(
               spacing: 8,
               children: [
-                _buildFilterChip('Today', 'today', period, onChanged),
-                _buildFilterChip('Last week', 'week', period, onChanged),
-                _buildFilterChip('Last month', 'month', period, onChanged),
+                _buildFilterChip('Récent', 'today', period, onChanged),
+                _buildFilterChip('Semaine', 'week', period, onChanged),
+                _buildFilterChip('Mois', 'month', period, onChanged),
               ],
             ),
           ),
