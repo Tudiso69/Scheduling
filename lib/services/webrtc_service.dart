@@ -31,14 +31,14 @@ class WebRTCService {
   Function(CallState)? onCallStateChanged;
   Function(MediaStream)? onRemoteStream;
   Function(String fromId, String fromName, String fromNumber)? onIncomingCall;
-  Function(Set<int>)? onOnlineUsersChanged;  // ✅ Nouveau callback
+  Function(Set<int>)? onOnlineUsersChanged;
 
   bool get isConnected => _socket?.connected ?? false;
   CallState get callState => _callState;
   MediaStream? get localStream => _localStream;
   MediaStream? get remoteStream => _remoteStream;
-  Set<int> get onlineUserIds => _onlineUserIds;  // ✅ Getter pour les users en ligne
-  IO.Socket? get socket => _socket;  // ✅ Exposer le socket
+  Set<int> get onlineUserIds => _onlineUserIds;
+  IO.Socket? get socket => _socket;
 
   final Map<String, dynamic> _iceServers = {
     'iceServers': [
@@ -65,45 +65,98 @@ class WebRTCService {
     required Map<String, dynamic> user,
     String? token,
   }) async {
+    print('🔌 === CONNEXION WEBRTC ===');
+    print('🌐 URL: $serverUrl');
+    print('👤 User: ${user['id']} - ${user['nom']}');
+
     _currentUser = user;
 
     _socket = IO.io(serverUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
+      'reconnection': true,
+      'reconnectionAttempts': 5,
+      'reconnectionDelay': 2000,
     });
 
     _socket!.connect();
 
     _socket!.on('connect', (_) {
-      print('✅ Connecté au serveur WebRTC');
+      print('✅ Socket connecté !');
+      print('📡 Socket ID: ${_socket!.id}');
+
       _socket!.emit('register', {
         'userId': user['id'],
         'token': token,
       });
     });
 
-    _socket!.on('registered', (data) {
-      print('✅ Enregistré: ${data}');
+    _socket!.on('disconnect', (_) {
+      print('❌ Socket déconnecté');
+      _onlineUserIds.clear();
+      _notifyOnlineUsersChanged();
     });
 
-    // ✅ Écouter les mises à jour de statut
+    _socket!.on('connect_error', (error) {
+      print('❌ Erreur connexion: $error');
+    });
+
+    _socket!.on('registered', (data) {
+      print('✅ Enregistrement confirmé: $data');
+    });
+
+    // ✅ AMÉLIORATION: Meilleure gestion des mises à jour de statut
     _socket!.on('users_status_update', (data) {
+      print('👥 === BROADCAST STATUT REÇU ===');
+      print('📦 Data complète: $data');
+
       try {
-        final List<dynamic> onlineIds = data['onlineUserIds'] ?? [];
-        _onlineUserIds = Set<int>.from(onlineIds.map((id) => id is int ? id : int.parse(id.toString())));
-
-        print('👥 Users en ligne: ${_onlineUserIds.length}');
-
-        // Notifier les listeners
-        if (onOnlineUsersChanged != null) {
-          onOnlineUsersChanged!(_onlineUserIds);
+        if (data == null) {
+          print('⚠️  Data est null');
+          return;
         }
-      } catch (e) {
-        print('Erreur parsing users online: $e');
+
+        if (data is Map) {
+          final onlineIdsData = data['onlineUserIds'];
+          print('🆔 onlineUserIds dans data: $onlineIdsData');
+
+          if (onlineIdsData == null) {
+            print('⚠️  onlineUserIds est null');
+            return;
+          }
+
+          // ✅ Conversion robuste
+          final List<int> newOnlineIds = [];
+          if (onlineIdsData is List) {
+            for (var id in onlineIdsData) {
+              if (id is int) {
+                newOnlineIds.add(id);
+              } else if (id is String) {
+                newOnlineIds.add(int.parse(id));
+              } else {
+                newOnlineIds.add(int.parse(id.toString()));
+              }
+            }
+          }
+
+          _onlineUserIds = newOnlineIds.toSet();
+          print('✅ ${_onlineUserIds.length} users en ligne mis à jour');
+          print('🆔 Liste des IDs: $_onlineUserIds');
+
+          // ✅ Notifier les listeners
+          _notifyOnlineUsersChanged();
+
+        } else {
+          print('⚠️  Data n\'est pas une Map: ${data.runtimeType}');
+        }
+      } catch (e, stackTrace) {
+        print('❌ Erreur parsing users online: $e');
+        print('Stack trace: $stackTrace');
       }
     });
 
     _socket!.on('incoming_call', (data) async {
+      print('📞 Appel entrant de ${data['fromName']}');
       _currentCallUserId = data['from'].toString();
       _updateCallState(CallState.ringing);
       _incomingOffer = data['offer'];
@@ -118,14 +171,17 @@ class WebRTCService {
     });
 
     _socket!.on('call_answered', (data) async {
+      print('✅ Appel accepté');
       await _handleAnswer(data['answer']);
     });
 
     _socket!.on('call_rejected', (_) {
+      print('❌ Appel rejeté');
       _endCall();
     });
 
     _socket!.on('call_ended', (_) {
+      print('📴 Appel terminé par l\'autre partie');
       _endCall();
     });
 
@@ -139,9 +195,22 @@ class WebRTCService {
     });
   }
 
+  // ✅ AMÉLIORATION: Méthode dédiée pour notifier les changements
+  void _notifyOnlineUsersChanged() {
+    if (onOnlineUsersChanged != null) {
+      print('📢 Notification des listeners...');
+      onOnlineUsersChanged!(_onlineUserIds);
+      print('✅ Listeners notifiés');
+    } else {
+      print('⚠️  Aucun listener enregistré');
+    }
+  }
+
   // ✅ Vérifier si un utilisateur est en ligne
   bool isUserOnline(int userId) {
-    return _onlineUserIds.contains(userId);
+    final isOnline = _onlineUserIds.contains(userId);
+    print('🔍 User $userId en ligne ? $isOnline');
+    return isOnline;
   }
 
   Future<void> makeCall(String toUserId) async {
@@ -149,6 +218,7 @@ class WebRTCService {
       throw Exception('Non connecté au serveur');
     }
 
+    print('📞 Appel vers $toUserId');
     _currentCallUserId = toUserId;
     _updateCallState(CallState.connecting);
 
@@ -173,6 +243,7 @@ class WebRTCService {
       throw Exception('Aucun appel entrant');
     }
 
+    print('✅ Acceptation de l\'appel');
     _updateCallState(CallState.connecting);
     await _createPeerConnection();
 
@@ -195,6 +266,7 @@ class WebRTCService {
   }
 
   void rejectCall() {
+    print('❌ Rejet de l\'appel');
     _socket!.emit('reject', {'to': _currentCallUserId});
     _currentCallUserId = null;
     _incomingOffer = null;
@@ -202,6 +274,7 @@ class WebRTCService {
   }
 
   void endCall() {
+    print('📴 Fin de l\'appel');
     if (_currentCallUserId != null) {
       _socket!.emit('end_call', {'to': _currentCallUserId});
     }
@@ -227,7 +300,7 @@ class WebRTCService {
 
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
-      throw Exception('Microphone permission not granted');
+      throw Exception('Permission microphone non accordée');
     }
 
     print('🎤 Création du nouveau stream audio...');
@@ -327,8 +400,10 @@ class WebRTCService {
   }
 
   void dispose() {
+    print('🗑️ Dispose WebRTCService');
     _endCall();
     _socket?.disconnect();
     _socket?.dispose();
+    _onlineUserIds.clear();
   }
 }

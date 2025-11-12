@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // ✅ URL de base modifiable
-  static String _baseUrl = 'http://192.168.46.79:3000/api';
+  static String _baseUrl = 'http://192.168.204.79:3000/api';
 
   static const storage = FlutterSecureStorage();
 
@@ -15,7 +15,7 @@ class ApiService {
   // ✅ Initialiser l'URL au démarrage de l'app
   static Future<void> initializeServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final ip = prefs.getString('server_ip') ?? '192.168.46.79';
+    final ip = prefs.getString('server_ip') ?? '192.168.204.79';
     final port = prefs.getString('server_port') ?? '3000';
     _baseUrl = 'http://$ip:$port/api';
     print('📡 Server URL initialisé: $_baseUrl');
@@ -34,7 +34,7 @@ class ApiService {
   static Future<Map<String, String>> getCurrentServerConfig() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'ip': prefs.getString('server_ip') ?? '192.168.46.79',
+      'ip': prefs.getString('server_ip') ?? '192.168.204.79',
       'port': prefs.getString('server_port') ?? '3000',
     };
   }
@@ -335,6 +335,13 @@ class ApiService {
   }) async {
     try {
       final token = await getToken();
+
+      print('🔥 === CRÉATION SCHEDULE ===');
+      print('📡 URL: $_baseUrl/schedules');
+      print('📅 Date début: ${dateDebut.toIso8601String().split('T')[0]}');
+      print('📅 Date fin: ${dateFin.toIso8601String().split('T')[0]}');
+      print('🔑 Token: ${token?.substring(0, 20)}...');
+
       final response = await http.post(
         Uri.parse('$_baseUrl/schedules'),
         headers: {
@@ -353,13 +360,24 @@ class ApiService {
         }),
       );
 
+      print('📬 Réponse serveur: ${response.statusCode}');
+      print('📦 Body: ${response.body}');
+
       final data = jsonDecode(response.body);
-      if (response.statusCode == 201) {
+
+      // ✅ Correction: Gérer les erreurs 400 (validation échouée)
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('✅ Success');
         return {'success': true, 'schedule': data['schedule']};
+      } else if (response.statusCode == 400) {
+        print('❌ Validation échouée: ${data['message']}');
+        return {'success': false, 'message': data['message'] ?? 'Erreur de validation'};
       } else {
-        return {'success': false, 'message': data['message']};
+        print('❌ Erreur ${response.statusCode}: ${data['message']}');
+        return {'success': false, 'message': data['message'] ?? 'Erreur serveur'};
       }
     } catch (e) {
+      print('❌ ERREUR EXCEPTION: $e');
       return {'success': false, 'message': 'Erreur de connexion'};
     }
   }

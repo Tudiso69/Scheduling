@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/webrtc_service.dart';
 import 'call_screen.dart';
 
 class ContactsPage extends StatefulWidget {
-  const ContactsPage({Key? key}) : super(key: key);
+  final WebRTCService webrtcService;
+
+  const ContactsPage({Key? key, required this.webrtcService}) : super(key: key);
 
   @override
   State<ContactsPage> createState() => _ContactsPageState();
@@ -15,42 +18,69 @@ class _ContactsPageState extends State<ContactsPage> {
   Set<int> _onlineUserIds = {};
   bool _isLoading = false;
   String _searchQuery = '';
-  int? _currentUserId;  // ✅ ID de l'utilisateur connecté
-
-  final WebRTCService _webrtcService = WebRTCService();
+  int? _currentUserId;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUser();  // ✅ Charger l'utilisateur actuel
+    print('🚀 === ContactsPage InitState ===');
+    _loadCurrentUser();
     _loadContacts();
-    _setupOnlineStatusListener();
+    _setupOnlineStatusRefresh();
   }
 
-  // ✅ Récupérer l'utilisateur connecté
   Future<void> _loadCurrentUser() async {
     final user = await ApiService.getUser();
     if (user != null) {
       setState(() {
         _currentUserId = user['id'];
       });
+      print('👤 User chargé: ${user['id']} - ${user['nom']}');
     }
   }
 
-  void _setupOnlineStatusListener() {
-    _onlineUserIds = _webrtcService.onlineUserIds;
+  void _setupOnlineStatusRefresh() {
+    print('🎧 === Configuration UI Refresh ContactsPage ===');
 
-    _webrtcService.onOnlineUsersChanged = (Set<int> onlineIds) {
+    _onlineUserIds = widget.webrtcService.onlineUserIds;
+    print('👥 État initial ContactsPage: ${_onlineUserIds.length} users');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         setState(() {
-          _onlineUserIds = onlineIds;
+          _onlineUserIds = widget.webrtcService.onlineUserIds;
         });
-        print('👥 Mise à jour: ${_onlineUserIds.length} users en ligne');
+        print('🔄 État initial appliqué après frame: $_onlineUserIds');
       }
-    };
+    });
+
+    _refreshTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+      if (mounted) {
+        final currentIds = widget.webrtcService.onlineUserIds;
+        if (currentIds != _onlineUserIds) {
+          setState(() {
+            _onlineUserIds = currentIds;
+          });
+          print('🔄 Refresh périodique: $_onlineUserIds');
+        }
+      } else {
+        timer.cancel();
+      }
+    });
+
+    print('✅ UI Refresh configuré');
+  }
+
+  @override
+  void dispose() {
+    print('🗑️ ContactsPage dispose');
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadContacts() async {
+    print('📥 Chargement des contacts...');
     setState(() => _isLoading = true);
     final result = await ApiService.getAllUsers();
     setState(() => _isLoading = false);
@@ -59,7 +89,9 @@ class _ContactsPageState extends State<ContactsPage> {
       setState(() {
         _contacts = result['users'];
       });
+      print('✅ ${_contacts.length} contacts chargés');
     } else {
+      print('❌ Erreur chargement contacts: ${result['message']}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -71,14 +103,11 @@ class _ContactsPageState extends State<ContactsPage> {
     }
   }
 
-  // ✅ Filtrer : exclure l'utilisateur connecté + recherche
   List<dynamic> get _filteredContacts {
-    // Exclure l'utilisateur connecté
     var filtered = _contacts.where((contact) {
-      return contact['id'] != _currentUserId;  // ✅ Ne pas s'afficher soi-même
+      return contact['id'] != _currentUserId;
     }).toList();
 
-    // Appliquer la recherche
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((contact) {
         final numero = contact['numero'].toString().toLowerCase();
@@ -95,10 +124,12 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   void _makeCall(dynamic contact) {
+    print('📞 Appel vers ${contact['nom']}');
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CallScreen(
+          webrtcService: widget.webrtcService,
           destinationUserId: contact['id'].toString(),
           destinationName:
           '${contact['nom']} ${contact['prenom'] ?? ''}'.trim(),
@@ -119,7 +150,6 @@ class _ContactsPageState extends State<ContactsPage> {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // Barre de recherche
           Container(
             padding: EdgeInsets.all(16),
             color: Colors.white,
@@ -143,38 +173,39 @@ class _ContactsPageState extends State<ContactsPage> {
                     contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
-
-                // Indicateur du nombre d'users en ligne
-                if (_onlineUserIds.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(top: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade500,
-                            shape: BoxShape.circle,
-                          ),
+                Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _onlineUserIds.isEmpty
+                              ? Colors.grey.shade400
+                              : Colors.green.shade500,
+                          shape: BoxShape.circle,
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          '${_onlineUserIds.length} utilisateur(s) en ligne',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        _onlineUserIds.isEmpty
+                            ? 'Aucun utilisateur en ligne'
+                            : '${_onlineUserIds.length} utilisateur(s) en ligne',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _onlineUserIds.isEmpty
+                              ? Colors.grey.shade600
+                              : Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
-
-          // Liste des contacts
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadContacts,
@@ -240,7 +271,6 @@ class _ContactsPageState extends State<ContactsPage> {
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         leading: Stack(
           children: [
-            // Avatar
             Container(
               width: 56,
               height: 56,
@@ -259,8 +289,6 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
               ),
             ),
-
-            // Indicateur en ligne (point vert)
             if (isOnline)
               Positioned(
                 right: 2,
@@ -308,8 +336,6 @@ class _ContactsPageState extends State<ContactsPage> {
                   color: Colors.grey.shade600,
                 ),
               ),
-
-            // Statut en ligne
             Padding(
               padding: EdgeInsets.only(top: 4),
               child: Row(
@@ -318,7 +344,9 @@ class _ContactsPageState extends State<ContactsPage> {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: isOnline ? Colors.green.shade500 : Colors.grey.shade400,
+                      color: isOnline
+                          ? Colors.green.shade500
+                          : Colors.grey.shade400,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -327,7 +355,9 @@ class _ContactsPageState extends State<ContactsPage> {
                     isOnline ? 'Disponible' : 'Hors ligne',
                     style: TextStyle(
                       fontSize: 11,
-                      color: isOnline ? Colors.green.shade700 : Colors.grey.shade600,
+                      color: isOnline
+                          ? Colors.green.shade700
+                          : Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -346,7 +376,9 @@ class _ContactsPageState extends State<ContactsPage> {
           child: IconButton(
             icon: Icon(
               Icons.call,
-              color: isOnline ? Colors.green.shade700 : Colors.grey.shade500,
+              color: isOnline
+                  ? Colors.green.shade700
+                  : Colors.grey.shade500,
             ),
             onPressed: isOnline ? () => _makeCall(contact) : null,
           ),

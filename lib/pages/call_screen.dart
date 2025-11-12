@@ -4,12 +4,14 @@ import '../services/webrtc_service.dart';
 import '../services/api_service.dart';
 
 class CallScreen extends StatefulWidget {
+  final WebRTCService? webrtcService;
   final String? destinationUserId;
   final String? destinationName;
   final bool isIncoming;
 
   const CallScreen({
     Key? key,
+    this.webrtcService,
     this.destinationUserId,
     this.destinationName,
     this.isIncoming = false,
@@ -20,22 +22,21 @@ class CallScreen extends StatefulWidget {
 }
 
 class _CallScreenState extends State<CallScreen> {
-  final WebRTCService _webrtcService = WebRTCService();
+  late final WebRTCService _webrtcService;
   String _statusText = '';
   bool _isMuted = false;
 
-  // ✅ Variables pour l'historique
   DateTime? _callStartTime;
   DateTime? _callEndTime;
-  String _callStatus = 'failed';  // Par défaut : échec
+  String _callStatus = 'failed';
   bool _callHistorySaved = false;
 
   @override
   void initState() {
     super.initState();
+    _webrtcService = widget.webrtcService ?? WebRTCService();
     _setupCallbacks();
 
-    // Enregistrer l'heure de début
     _callStartTime = DateTime.now();
 
     if (widget.isIncoming) {
@@ -62,8 +63,7 @@ class _CallScreenState extends State<CallScreen> {
             break;
           case CallState.connected:
             _statusText = 'En communication';
-            _callStatus = 'completed';  // ✅ Appel réussi
-            // Mettre à jour l'heure de début quand connecté
+            _callStatus = 'completed';
             if (_callStartTime == null) {
               _callStartTime = DateTime.now();
             }
@@ -71,7 +71,7 @@ class _CallScreenState extends State<CallScreen> {
           case CallState.ended:
             _statusText = 'Appel terminé';
             _callEndTime = DateTime.now();
-            _saveCallHistory();  // ✅ Sauvegarder l'historique
+            _saveCallHistory();
             Future.delayed(Duration(seconds: 2), () {
               if (mounted) Navigator.pop(context);
             });
@@ -95,23 +95,19 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
-  // ✅ Sauvegarder l'historique de l'appel
   Future<void> _saveCallHistory() async {
-    // Éviter de sauvegarder plusieurs fois
     if (_callHistorySaved) return;
     _callHistorySaved = true;
 
-    // Calculer la durée
     final duration = _callEndTime != null && _callStartTime != null
         ? _callEndTime!.difference(_callStartTime!).inSeconds
         : 0;
 
-    // Déterminer le statut final
     String finalStatus;
     if (_callStatus == 'completed' && duration > 0) {
       finalStatus = 'completed';
     } else if (_callStatus == 'incoming' || _callStatus == 'outgoing') {
-      finalStatus = 'no_answer';  // Pas de réponse
+      finalStatus = 'no_answer';
     } else {
       finalStatus = 'failed';
     }
@@ -189,8 +185,6 @@ class _CallScreenState extends State<CallScreen> {
                   _statusText,
                   style: TextStyle(color: Colors.white70, fontSize: 18),
                 ),
-
-                // ✅ Afficher la durée si l'appel est connecté
                 if (_webrtcService.callState == CallState.connected && _callStartTime != null)
                   _buildCallTimer(),
               ],
@@ -208,7 +202,6 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // ✅ Timer de durée d'appel
   Widget _buildCallTimer() {
     return StreamBuilder(
       stream: Stream.periodic(Duration(seconds: 1)),
@@ -281,7 +274,6 @@ class _CallScreenState extends State<CallScreen> {
           icon: Icons.volume_up,
           color: Colors.white,
           onPressed: () {
-            // Toggle speaker
             Helper.setSpeakerphoneOn(true);
           },
         ),
@@ -313,7 +305,6 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   void dispose() {
-    // Si l'utilisateur quitte l'écran pendant l'appel
     if (_webrtcService.callState != CallState.idle &&
         _webrtcService.callState != CallState.ended) {
       _callEndTime = DateTime.now();

@@ -25,19 +25,24 @@ class _SchedulesPageState extends State<SchedulesPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    print('🚀 SchedulesPage initialisé');
     _loadSchedules();
   }
 
   Future<void> _loadSchedules() async {
+    print('\n📥 === CHARGEMENT SCHEDULES ===');
     setState(() => _isLoading = true);
     final result = await ApiService.getSchedules();
+    print('📬 Résultat: $result');
     setState(() => _isLoading = false);
 
     if (result['success']) {
       setState(() {
         _schedules = result['schedules'];
       });
+      print('✅ ${_schedules.length} schedules chargés');
     } else {
+      print('❌ Erreur chargement: ${result['message']}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
@@ -87,7 +92,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
             ),
           ),
 
-          // ✅ Calendrier overlay plus petit et responsive
+          // Calendrier overlay
           if (_showCalendar)
             Positioned.fill(
               child: GestureDetector(
@@ -98,7 +103,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                     child: GestureDetector(
                       onTap: () {},
                       child: Container(
-                        // ✅ Taille responsive avec constraints
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.9,
                           maxHeight: MediaQuery.of(context).size.height * 0.7,
@@ -118,7 +122,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Header du calendrier
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
@@ -150,7 +153,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                                 ],
                               ),
                             ),
-                            // ✅ Calendrier avec padding optimisé
                             Flexible(
                               child: SingleChildScrollView(
                                 child: Padding(
@@ -173,7 +175,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                                       });
                                     },
                                     eventLoader: _getEventsForDay,
-                                    // ✅ Taille des cellules optimisée
                                     daysOfWeekHeight: 40,
                                     rowHeight: 48,
                                     calendarStyle: CalendarStyle(
@@ -189,7 +190,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                                         color: Colors.orange,
                                         shape: BoxShape.circle,
                                       ),
-                                      // ✅ Taille de texte optimisée
                                       cellMargin: const EdgeInsets.all(4),
                                       defaultTextStyle: const TextStyle(fontSize: 14),
                                       weekendTextStyle: const TextStyle(fontSize: 14),
@@ -217,45 +217,39 @@ class _SchedulesPageState extends State<SchedulesPage> {
             ),
         ],
       ),
-      // ✅ Boutons repositionnés : Calendrier à gauche, Ajouter à droite// ✅ Les deux boutons côte à côte en bas à gauche
-       floatingActionButton: Padding(
-         padding: const EdgeInsets.only(left: 10),
-         child: Row(
-           mainAxisSize: MainAxisSize.min,
-           children: [
-             // Bouton Calendrier
-             FloatingActionButton(
-               heroTag: 'calendar',
-               onPressed: _toggleCalendar,
-               backgroundColor: Colors.cyan.shade600,
-               elevation: 6,
-               child: Icon(
-                 _showCalendar ? Icons.close : Icons.calendar_today,
-                 color: Colors.white,
-                 size: 26,
-               ),
-             ),
-
-             // Espacement entre les boutons
-             const SizedBox(width: 12),
-
-             // Bouton Ajouter (seulement pour admin/secrétaire)
-             if (_canManageSchedules())
-               FloatingActionButton(
-                 heroTag: 'add',
-                 onPressed: () => _showAddScheduleDialog(),
-                 backgroundColor: Colors.greenAccent,
-                 elevation: 6,
-                 child: const Icon(
-                   Icons.add,
-                   color: Colors.white,
-                   size: 28,
-                 ),
-               ),
-           ],
-         ),
-       ),
-       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(left: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FloatingActionButton(
+              heroTag: 'calendar',
+              onPressed: _toggleCalendar,
+              backgroundColor: Colors.cyan.shade600,
+              elevation: 6,
+              child: Icon(
+                _showCalendar ? Icons.close : Icons.calendar_today,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (_canManageSchedules())
+              FloatingActionButton(
+                heroTag: 'add',
+                onPressed: () => _showAddScheduleDialog(),
+                backgroundColor: Colors.greenAccent,
+                elevation: 6,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
@@ -327,13 +321,11 @@ class _SchedulesPageState extends State<SchedulesPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // En-tête avec date/heure et titre
               Container(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date et heure (à gauche)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
@@ -363,7 +355,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Titre (au milieu)
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,7 +378,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                         ],
                       ),
                     ),
-                    // Menu actions (pour secrétaire/admin)
                     if (_canManageSchedules())
                       PopupMenuButton(
                         icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
@@ -424,8 +414,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   ],
                 ),
               ),
-
-              // Description (expandable)
               if (schedule['description'] != null && schedule['description'].isNotEmpty)
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
@@ -461,13 +449,10 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   )
                       : const SizedBox.shrink(),
                 ),
-
-              // Footer avec lieu
               Container(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    // Indicateur expandable
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -494,7 +479,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                       ),
                     ),
                     const Spacer(),
-                    // Lieu (à droite)
                     if (schedule['lieu'] != null && schedule['lieu'].isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -571,7 +555,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Titre
                 TextField(
                   controller: titreController,
                   decoration: InputDecoration(
@@ -583,8 +566,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Date et Heure de début
                 Row(
                   children: [
                     Expanded(
@@ -593,7 +574,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: dateDebut,
-                            firstDate: DateTime(2020),
+                            firstDate: DateTime.now(), // ✅ Bloque dates passées
                             lastDate: DateTime(2030),
                           );
                           if (picked != null) {
@@ -635,8 +616,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Date et Heure de fin
                 Row(
                   children: [
                     Expanded(
@@ -645,7 +624,7 @@ class _SchedulesPageState extends State<SchedulesPage> {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: dateFin,
-                            firstDate: DateTime(2020),
+                            firstDate: dateDebut, // ✅ Date fin >= date début
                             lastDate: DateTime(2030),
                           );
                           if (picked != null) {
@@ -687,8 +666,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Lieu
                 TextField(
                   controller: lieuController,
                   decoration: InputDecoration(
@@ -701,8 +678,6 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Description
                 TextField(
                   controller: descriptionController,
                   decoration: InputDecoration(
@@ -736,6 +711,14 @@ class _SchedulesPageState extends State<SchedulesPage> {
 
                 Navigator.pop(dialogContext);
 
+                // ✅ LOGS AJOUTÉS
+                print('\n🚀 === SOUMISSION SCHEDULE ===');
+                print('📝 Titre: ${titreController.text.trim()}');
+                print('📅 Date début: $dateDebut');
+                print('📅 Date fin: $dateFin');
+                print('🕐 Heure début: ${heureDebut.format(context)}');
+                print('🕐 Heure fin: ${heureFin.format(context)}');
+
                 final data = {
                   'titre': titreController.text.trim(),
                   'description': descriptionController.text.trim(),
@@ -745,6 +728,8 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   'heure_debut': '${heureDebut.hour.toString().padLeft(2, '0')}:${heureDebut.minute.toString().padLeft(2, '0')}',
                   'heure_fin': '${heureFin.hour.toString().padLeft(2, '0')}:${heureFin.minute.toString().padLeft(2, '0')}',
                 };
+
+                print('📦 Data envoyée: $data');
 
                 final result = isEdit
                     ? await ApiService.updateSchedule(schedule['id'], data)
@@ -758,19 +743,27 @@ class _SchedulesPageState extends State<SchedulesPage> {
                   lieu: data['lieu'],
                 );
 
+                print('📬 === RÉSULTAT COMPLET ===');
+                print(result);
+                print('Success: ${result['success']}');
+                print('Message: ${result['message']}');
+
                 if (mounted) {
                   if (result['success']) {
+                    print('✅ SUCCESS: Schedule ${isEdit ? "modifié" : "créé"}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(isEdit ? 'Horaire modifié' : 'Horaire créé'),
                         backgroundColor: Colors.green,
                       ),
                     );
+                    print('🔄 Rechargement de la liste...');
                     _loadSchedules();
                   } else {
+                    print('❌ ERREUR: ${result['message']}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(result['message']),
+                        content: Text(result['message'] ?? 'Erreur inconnue'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -823,9 +816,16 @@ class _SchedulesPageState extends State<SchedulesPage> {
     );
 
     if (confirm == true) {
+      print('\n🗑️ === SUPPRESSION SCHEDULE ===');
+      print('🆔 ID: $scheduleId');
+
       final result = await ApiService.deleteSchedule(scheduleId);
+
+      print('📬 Résultat suppression: $result');
+
       if (mounted) {
         if (result['success']) {
+          print('✅ Schedule supprimé');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Horaire supprimé'),
@@ -834,9 +834,10 @@ class _SchedulesPageState extends State<SchedulesPage> {
           );
           _loadSchedules();
         } else {
+          print('❌ Erreur suppression: ${result['message']}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message']),
+              content: Text(result['message'] ?? 'Erreur'),
               backgroundColor: Colors.red,
             ),
           );

@@ -14,13 +14,9 @@ import 'pages/settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // ✅ Initialiser l'URL du serveur depuis les préférences
   await ApiService.initializeServerUrl();
-
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -39,28 +35,29 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-// ✅ AJOUTER CETTE FONCTION
 Future<String> getServerUrl() async {
   if (Platform.isAndroid) {
     final deviceInfo = DeviceInfoPlugin();
     final androidInfo = await deviceInfo.androidInfo;
-
-    // Vérifier si c'est un émulateur
     final isEmulator = !androidInfo.isPhysicalDevice;
 
+    String ip;
     if (isEmulator) {
-      print('📱 Émulateur détecté → http://10.0.2.2:3000');
-      return 'http://10.0.2.2:3000';
+      ip = '10.0.2.2';
     } else {
-      print('📱 Téléphone réel détecté → http://192.168.46.79:3000');
-      return 'http://192.168.46.79:3000';  // REMPLACEZ par votre IP Windows
+      final config = await ApiService.getCurrentServerConfig();
+      ip = config['ip'] ?? '192.168.46.79';
     }
-  }
 
+    final config = await ApiService.getCurrentServerConfig();
+    final port = config['port'] ?? '3000';
+    final url = 'http://$ip:$port';
+    print('📱 URL WebRTC: $url');
+    return url;
+  }
   return 'http://localhost:3000';
 }
-// Vérificateur d'authentification
+
 class AuthChecker extends StatefulWidget {
   const AuthChecker({super.key});
 
@@ -105,164 +102,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _user;
-  final WebRTCService _webrtcService = WebRTCService();  // ✅ Nouveau
+  late final WebRTCService _webrtcService;
+  Set<int> _globalOnlineUserIds = {};
 
   @override
   void initState() {
     super.initState();
+    _webrtcService = WebRTCService();
     _loadUser();
-    _setupWebRTC();  // ✅ Nouveau
+    _setupWebRTC();
   }
-
-  void _showSettingsMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Poignée
-              Container(
-                width: 40,
-                height: 4,
-                margin: EdgeInsets.only(top: 12, bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              // Titre
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: Colors.cyan.shade700, size: 28),
-                    SizedBox(width: 12),
-                    Text(
-                      'Paramètres',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 20),
-
-              // ✅ Option 1 : Changer IP du serveur (Admin uniquement)
-              //if (_user?['role'] == 'admin')
-                ListTile(
-                  leading: Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.computer, color: Colors.blue.shade700),
-                  ),
-                  title: Text(
-                    'Configuration Serveur',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text('Modifier l\'IP du serveur'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => SettingsPage()),
-                    );
-                  },
-                ),
-
-              // Divider si admin (pour séparer les options)
-              if (_user?['role'] == 'admin')
-                Divider(height: 1, thickness: 1),
-
-              // ✅ Option 2 : Déconnexion (Tous les utilisateurs)
-              ListTile(
-                leading: Container(
-                  padding: EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.logout, color: Colors.red.shade700),
-                ),
-                title: Text(
-                  'Déconnexion',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                subtitle: Text('Se déconnecter de l\'application'),
-                trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
-                onTap: () {
-                  Navigator.pop(context);
-                  _confirmLogout();
-                },
-              ),
-
-              SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-// Dialog de confirmation de déconnexion
-  void _confirmLogout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange.shade700),
-            SizedBox(width: 12),
-            Text('Confirmation'),
-          ],
-        ),
-        content: Text('Voulez-vous vraiment vous déconnecter ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Déconnexion'),
-          ),
-        ],
-      ),
-    );
-  }
-
 
   Future<void> _loadUser() async {
     final user = await ApiService.getUser();
@@ -273,12 +122,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ✅ Configuration WebRTC
   Future<void> _setupWebRTC() async {
     final user = await ApiService.getUser();
     final token = await ApiService.getToken();
+
     if (user != null) {
-      final serverUrl = await getServerUrl();  // ✅ Async
+      final serverUrl = await getServerUrl();
+
+      print('🔌 Initialisation WebRTC...');
+      print('🌐 URL: $serverUrl');
+      print('👤 User: ${user['id']} - ${user['nom']}');
 
       await _webrtcService.connect(
         serverUrl: serverUrl,
@@ -286,7 +139,21 @@ class _HomePageState extends State<HomePage> {
         token: token,
       );
 
-      // Écouter les appels entrants
+      _webrtcService.onOnlineUsersChanged = (Set<int> onlineIds) {
+        print('🔔 === CALLBACK GLOBAL HOMEPAGE DÉCLENCHÉ ===');
+        print('👥 IDs en ligne: $onlineIds');
+        print('📊 Nombre: ${onlineIds.length}');
+
+        if (mounted) {
+          setState(() {
+            _globalOnlineUserIds = onlineIds;
+          });
+          print('✅ État global HomePage mis à jour');
+        }
+      };
+
+      print('✅ WebRTC initialisé + Callback global enregistré');
+
       _webrtcService.onIncomingCall = (fromId, fromName, fromNumber) {
         showDialog(
           context: context,
@@ -342,6 +209,7 @@ class _HomePageState extends State<HomePage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => CallScreen(
+                        webrtcService: _webrtcService,
                         destinationName: fromName,
                         isIncoming: true,
                       ),
@@ -360,8 +228,143 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _showSettingsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(top: 12, bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, color: Colors.cyan.shade700, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'Paramètres',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.computer, color: Colors.blue.shade700),
+                ),
+                title: Text(
+                  'Configuration Serveur',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text('Modifier l\'IP du serveur'),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SettingsPage()),
+                  );
+                },
+              ),
+              Divider(height: 1, thickness: 1),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.logout, color: Colors.red.shade700),
+                ),
+                title: Text(
+                  'Déconnexion',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                subtitle: Text('Se déconnecter de l\'application'),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmLogout();
+                },
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange.shade700),
+            SizedBox(width: 12),
+            Text('Confirmation'),
+          ],
+        ),
+        content: Text('Voulez-vous vraiment vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _logout() async {
-    _webrtcService.dispose();  // ✅ Déconnecter WebRTC
+    _webrtcService.dispose();
     await ApiService.logout();
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -378,7 +381,6 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.grey[50],
         body: Column(
           children: [
-            // Header Section (identique)
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -397,184 +399,170 @@ class _HomePageState extends State<HomePage> {
                     offset: const Offset(0, 5),
                   ),
                 ],
-              ),child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                child: Row(
-                  children: [
-                    // ✅ Avatar avec gradient + point vert "En ligne"
-                    Stack(
-                      children: [
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.cyan.shade300,
-                                Colors.cyan.shade600,
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.cyan.withOpacity(0.4),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 3,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _user?['nom']?[0]?.toUpperCase() ?? 'U',
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Point "En ligne" (vert)
-                        Positioned(
-                          right: 2,
-                          bottom: 2,
-                          child: Container(
-                            width: 18,
-                            height: 18,
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  child: Row(
+                    children: [
+                      Stack(
+                        children: [
+                          Container(
+                            width: 70,
+                            height: 70,
                             decoration: BoxDecoration(
-                              color: Colors.green.shade500,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.cyan.shade300,
+                                  Colors.cyan.shade600,
+                                ],
+                              ),
                               shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.cyan.withOpacity(0.4),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                               border: Border.all(
                                 color: Colors.white,
                                 width: 3,
                               ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-
-                    // ✅ Infos utilisateur avec badges
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Numéro avec badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              _user?['numero'] ?? 'Chargement...',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Nom avec ombre
-                          Text(
-                            _user != null
-                                ? '${_user!['nom']} ${_user!['prenom'] ?? ''}'.trim()
-                                : '',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black12.withOpacity(0.1),
-                                  offset: const Offset(0, 1),
-                                  blurRadius: 2,
+                            child: Center(
+                              child: Text(
+                                _user?['nom']?[0]?.toUpperCase() ?? 'U',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-
-                          // Fonction avec icône étoile
-                          if (_user?['fonction'] != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.shade400,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.star,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      _user!['fonction'],
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.amber.shade100.withOpacity(1),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                          Positioned(
+                            right: 2,
+                            bottom: 2,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade500,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                _user?['numero'] ?? 'Chargement...',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _user != null
+                                  ? '${_user!['nom']} ${_user!['prenom'] ?? ''}'.trim()
+                                  : '',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black12.withOpacity(0.1),
+                                    offset: const Offset(0, 1),
+                                    blurRadius: 2,
                                   ),
                                 ],
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-
-                    // Bouton déconnexion (inchangé)
-                    // Dans le Row du header, remplacez le bouton déconnexion par :
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          _showSettingsMenu(context);
-                        },
-                        icon: const Icon(
-                          Icons.settings,
-                          color: Colors.white,
-                          size: 26,
+                            if (_user?['fonction'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade400,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.star,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        _user!['fonction'],
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.amber.shade100.withOpacity(1),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                        tooltip: 'Paramètres',
                       ),
-                    ),
-
-                  ],
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            _showSettingsMenu(context);
+                          },
+                          icon: const Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                          tooltip: 'Paramètres',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-
-            ),
-            // Tab Bar Section
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -620,62 +608,25 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            // Tab Content
             Expanded(
               child: TabBarView(
                 children: [
                   SchedulesPage(userRole: _user?['role']),
-                  ContactsPage(),  // ✅ Page Contacts avec appels
+                  ContactsPage(webrtcService: _webrtcService),
                   HistoryPage(),
                 ],
               ),
             ),
           ],
-        ),/*
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            DialpadBottomSheet.show(context);
-          },
-          backgroundColor: Colors.cyan.shade600,
-          elevation: 6,
-          child: const Icon(
-            Icons.dialpad,
-            size: 28,
-            color: Colors.white,
-          ),
-        ),*/
+        ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      ),
-    );
-  }
-
-  Widget _buildTabContent(IconData icon, String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 80,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
 
   @override
   void dispose() {
-    _webrtcService.dispose();  // ✅ Nettoyer à la fermeture
+    print('🗑️ HomePage dispose');
     super.dispose();
   }
 }
