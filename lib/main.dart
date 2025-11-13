@@ -41,22 +41,24 @@ Future<String> getServerUrl() async {
     final androidInfo = await deviceInfo.androidInfo;
     final isEmulator = !androidInfo.isPhysicalDevice;
 
-    String ip;
-    if (isEmulator) {
-      ip = '10.0.2.2';
-    } else {
-      final config = await ApiService.getCurrentServerConfig();
-      ip = config['ip'] ?? '192.168.46.79';
-    }
-
+    // ✅ FORCER LA MÊME IP POUR TOUT LE MONDE
     final config = await ApiService.getCurrentServerConfig();
+    String ip = config['ip'] ?? '192.168.46.79'; // IP réelle de votre PC
+
+    // ⚠️ COMMENTER CES LIGNES QUI CAUSENT LE PROBLÈME
+    // if (isEmulator) {
+    //   ip = '10.0.2.2';
+    // }
+
     final port = config['port'] ?? '3000';
     final url = 'http://$ip:$port';
-    print('📱 URL WebRTC: $url');
+    print('📱 Device type: ${isEmulator ? "Émulateur" : "Physique"}');
+    print('🌐 URL WebRTC: $url');
     return url;
   }
   return 'http://localhost:3000';
 }
+
 
 class AuthChecker extends StatefulWidget {
   const AuthChecker({super.key});
